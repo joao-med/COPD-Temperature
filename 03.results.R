@@ -125,7 +125,7 @@ for (i in dados$Microregiao %>% unique){
   P97.5 = round(quantile(temp,probs=0.975),1)
   P99 = round(quantile(temp,probs=0.99),1)
   P100 = round(quantile(temp,probs=1),1)
-  ## Creating cross-basis objects for Temperature (lags up to 14 days)
+  ## Creating cross-basis objects for Temperature (lags up to 21 days)
   
   cb <- crossbasis(temp, 
                    lag=21, 
