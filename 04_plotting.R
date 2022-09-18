@@ -1,12 +1,12 @@
 library(tidyverse)
-source("findmin.R")
+source("00.findmin.R")
 library(lubridate)
 library(mgcv)
 library(splines)
 library(stats)
 library(dlnm)
 library(patchwork)
-source("attrdl.R")
+source("00.attrdl.R")
 options(scipen=999)
 theme_set(theme_classic())
 
@@ -18,15 +18,15 @@ deaths <- ggplot(data=dados,aes(x=Data, y=Casos)) +
   geom_point(alpha=0.1, size = 0.2,color = "grey") +
   geom_smooth(color="black") +
   ylab("Daily deaths")+
-  xlab("Date")+
+  xlab("")+
   facet_wrap(~Microregiao,ncol=2, scales = "free")+
   ggtitle('A')
 
 avg_temp <- ggplot(data=dados,aes(x=Data, y=Temp_med)) +
   geom_point(alpha=0.1, size = 0.2,color = "grey") +
   geom_smooth(color="black") +
-  xlab("Date")+
-  ylab('Average Temperature ºC')+
+  xlab("")+
+  ylab('Average temperature ºC')+
   facet_wrap(~Microregiao,ncol=2)+
   ggtitle('B')
 
@@ -239,7 +239,7 @@ ggsave("figures/figS1_eng.jpeg", dpi = 300, width = 5000, height = 3000, units =
 deaths <- ggplot(data=dados,aes(x=Data, y=Casos)) +
   geom_point(alpha=0.1, size = 0.2,color = "grey") +
   geom_smooth(color="black") +
-  ylab("Mortes Miárias")+
+  ylab("Mortes diárias")+
   xlab("")+
   facet_wrap(~Microregiao,ncol=2, scales = "free")+
   ggtitle('A')
@@ -250,7 +250,7 @@ avg_temp <- ggplot(data=dados,aes(x=Data, y=Temp_med)) +
   geom_point(alpha=0.1, size = 0.2,color = "grey") +
   geom_smooth(color="black") +
   xlab("")+
-  ylab('Temperature Média (ºC)')+
+  ylab('Temperatura média (ºC)')+
   facet_wrap(~Microregiao,ncol=2)+
   ggtitle('B')
 
@@ -288,7 +288,7 @@ for (i in 1:10){
   
   ## rugged and line plot
   plot(pred,"overall",ylab="RR (lag 0-21)",xlab="Temperatura (ºC)",
-       axes=T,lwd=1.5, main = paste0(i %>% str_to_title()),cex=0.75)
+       axes=T,lwd=1.5, main = paste0(name %>% str_to_title()),cex=0.75)
   rug(temp_data$Temp_med)
   abline(v=MMT)
 }
