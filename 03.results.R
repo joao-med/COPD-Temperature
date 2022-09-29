@@ -1,12 +1,12 @@
 library(tidyverse)
 library(xlsx)
-source("findmin.R")
+source("00.findmin.R")
 library(lubridate)
 library(mgcv)
 library(splines)
 library(stats)
 library(dlnm)
-source("attrdl.R")
+source("00.attrdl.R")
 options(scipen=999)
 
 
@@ -202,16 +202,11 @@ MMT_table <- MMT_city
 # Creating table 4
 # data regarding AR of each temperature span analyzed
 
-percentiles <- list(c(P0,P2.5),
-                    c(P2.5,P10),
-                    c(P10,MMT),
-                    c(MMT,P90),
-                    c(P90,P97.5),
-                    c(P97.5,P100))
 conditions <- list("Frio extremo","Frio moderado","Frio leve",
                    "Calor leve","Calor moderado","Calor extremo")
 
-big_table4 <- tibble()
+big_table4.1 <- tibble()
+big_table4.2 <- tibble()
 
 for (a in dados$Microregiao %>% unique){
   print(a)
@@ -232,6 +227,12 @@ for (a in dados$Microregiao %>% unique){
   P97.5 = round(quantile(temp,probs=0.975),1)
   P99 = round(quantile(temp,probs=0.99),1)
   P100 = round(quantile(temp,probs=1),1)
+  percentiles <- list(c(P0,P2.5),
+                      c(P2.5,P10),
+                      c(P10,MMT),
+                      c(MMT,P90),
+                      c(P90,P97.5),
+                      c(P97.5,P100))
   ## Creating cross-basis objects for Temperature (lags up to 14 days)
   
   cb <- crossbasis(temp, 
@@ -258,140 +259,71 @@ for (a in dados$Microregiao %>% unique){
     print(b)
     c = conditions[[b]]
     d = percentiles[[b]]
-    
-    AR <- round(attrdl(temp,
-                       cb,
+    # Attributed ratio
+    AR <- round(attrdl(temp,cb,
                        temp_data$Casos,
                        mod,
                        type="af",
                        cen=MMT,
                        range=c(d),
-                       dir="forw")*100,1) %>% as_tibble()
-    
-    sim <- attrdl(temp,
-                  cb,
-                  temp_data$Casos,
-                  mod,
-                  type="af",
-                  cen=MMT,
-                  range=c(d),
-                  sim=T,
-                  nsim=1000,
-                  dir="forw")
-  
-    
-    CI <- round(quantile(sim,c(2.5,97.5)/100)*100,1) %>% 
-      as_tibble()
-    
-    tib_var <- tibble(variables = c("AR","CI_inf","CI_sup"))
-    tib_value <- bind_rows(AR, CI)
-    
-    lil_tible4 <- bind_cols(tib_var, tib_value, city = a, condition = c)
-    
-    big_table4 <- bind_rows(big_table4,
-                            lil_tible4)
-    
-  }}
-
-table4 <- big_table4 %>% 
-  pivot_wider(names_from = "variables", values_from = "value")
-
-# Creating table 5
-# data regarding AR of each temperature span analyzed
-
-percentiles <- list(c(P0,P2.5),
-                    c(P2.5,P10),
-                    c(P10,MMT),
-                    c(MMT,P90),
-                    c(P90,P97.5),
-                    c(P97.5,P100))
-conditions <- list("Frio extremo","Frio moderado","Frio leve",
-                   "Calor leve","Calor moderado","Calor extremo")
-
-big_table5 <- tibble()
-
-for (a in dados$Microregiao %>% unique){
-  print(a)
-  temp_data <- dados %>% filter(Microregiao == a)
-  temp = temp_data$Temp_med
-  temp_data$tempo <- 1:8036
-  ### DLNM MODELS
-  # temperature quantis
-  round(quantile(temp, probs = c(0,0.01,0.025,0.1,0.25,0.5,0.75,0.9,0.975,0.99,1)),1)
-  P0 = round(quantile(temp,probs=0),1)
-  P1 = round(quantile(temp,probs=0.01),1)
-  P2.5 = round(quantile(temp,probs=0.025),1)
-  P10 = round(quantile(temp,probs=0.1),1)
-  P25 = round(quantile(temp,probs=0.25),1)
-  P50 = round(quantile(temp,probs=0.5),1)
-  P75 = round(quantile(temp,probs=0.75),1)
-  P90 = round(quantile(temp,probs=0.9),1)
-  P97.5 = round(quantile(temp,probs=0.975),1)
-  P99 = round(quantile(temp,probs=0.99),1)
-  P100 = round(quantile(temp,probs=1),1)
-  ## Creating cross-basis objects for Temperature (lags up to 14 days)
-  
-  cb <- crossbasis(temp, 
-                   lag=21, 
-                   argvar=list(fun="ns",df=5),
-                   arglag=list(fun="poly",degree=4))
-  ## adjusting the GAM / DLMN model with negative binomial distribution
-  
-  mod <- gam(Casos~cb+
-               ns(tempo,22*8)+
-               Dia,
-             family= nb,
-             data= temp_data)
-  res.mod <- resid(mod, type = "deviance")
-  
-  ## ESTIMATING THE MINIMUM RISK TEMPERATURE
-  # Ref: Tobías et al., 2017.
-  
-  MMT <- findmin(cb,
-                 mod,
-                 from= P1,
-                 to= P99)
-  for (b in 1:6){
-    print(b)
-    c = conditions[[b]]
-    d = percentiles[[b]]
-    
-    AN <- round(attrdl(temp,
-                       cb,
+                       dir="forw")*100,2) %>% as_tibble()
+    # Attributed Number
+    AN <- round(attrdl(temp,cb,
                        temp_data$Casos,
                        mod,
                        type="an",
                        cen=MMT,
                        range=c(d),
-                       dir="forw")) %>% as_tibble()
+                       dir="forw"),2) %>% as_tibble()
     
-    sim <- attrdl(temp,
-                  cb,
-                  temp_data$Casos,
-                  mod,
-                  type="an",
-                  cen=MMT,
-                  range=c(d),
-                  sim=T,
-                  nsim=1000,
-                  dir="forw")
+    sim_r <- attrdl(temp,cb,temp_data$Casos,mod,type="af",
+                    cen=MMT,range=c(d),sim=T,nsim=1000,dir="forw")
     
-    CI <- round(quantile(sim,c(2.5,97.5)/100)) %>% 
+    sim_n <- attrdl(temp,cb,temp_data$Casos,mod,type="an",
+                    cen=MMT,range=c(d),sim=T,nsim=1000,dir="forw")
+    
+    
+    CI.1 <- round(quantile(sim_r,c(2.5,97.5)/100)*100,2) %>% 
+      as_tibble()
+    CI.2 <- round(quantile(sim_n,c(2.5,97.5)/100)*100,2) %>% 
       as_tibble()
     
-    tib_var <- tibble(variables = c("AN","CI_inf","CI_sup"))
-    tib_value <- bind_rows(AN, CI)
     
-    lil_tible5 <- bind_cols(tib_var, tib_value, city = a, condition = c)
+    tib_var.1 <- tibble(variables = c("point","CI_inf","CI_sup"))
+    tib_value.1 <- bind_rows(AR, CI.1)
+    lil_tible4.1 <- bind_cols(tib_var.1, tib_value.1, city = a, condition = c)
+    big_table4.1 <- bind_rows(big_table4.1,
+                              lil_tible4.1)
     
-    big_table5 <- bind_rows(big_table5,
-                            lil_tible5)
+    tib_var.2 <- tibble(variables = c("point","CI_inf","CI_sup"))
+    tib_value.2 <- bind_rows(AN, CI.2)
+    lil_tible4.2 <- bind_cols(tib_var.2, tib_value.2, city = a, condition = c)
+    big_table4.2 <- bind_rows(big_table4.2,
+                              lil_tible4.2)
     
   }}
-table5 <- big_table5 %>% 
-  pivot_wider(names_from = "variables", values_from = "value")
 
-# Creating table 6
+big_table4.1 <- big_table4.1 %>% 
+  pivot_wider(names_from = "variables", values_from = "value") %>% 
+  mutate(term = "A_R",
+         result = paste(point, "(", CI_inf,";",CI_sup,")")) %>% 
+  select(-c(point, CI_inf,CI_sup)) 
+big_table4.1 <- big_table4.1 %>% pivot_wider(names_from = "city",
+                                             values_from = "result")
+big_table4.2 <- big_table4.2 %>% 
+  pivot_wider(names_from = "variables", values_from = "value") %>% 
+  mutate(term = "A_N",
+         result = paste(point, "(", CI_inf,";",CI_sup,")")) %>% 
+  select(-c(point, CI_inf,CI_sup)) 
+big_table4.2 <- big_table4.2 %>% pivot_wider(names_from = "city",
+                                             values_from = "result")
+
+big_table4 <- bind_rows(big_table4.1,big_table4.2)
+
+table4 <- big_table4 %>% arrange(term) 
+
+
+# Creating table 5
 # data regarding AR of each temperature span based on city and different models for sensitivity analysis
 
 # Changing cb
@@ -402,7 +334,7 @@ for (i in dados$Microregiao %>% unique){
   print(i)
   temp_data <- dados %>% filter(Microregiao == i)
   temp_data$tempo <- 1:8036
-
+  
   temp = temp_data$Temp_med
   
   cb1 <- crossbasis(temp,
@@ -586,7 +518,7 @@ for (i in dados$Microregiao %>% unique){
   print(i)
   temp_data <- dados %>% filter(Microregiao == i)
   temp_data$tempo <- 1:8036
-
+  
   temp11 <-  temp_data$Temp_min #11
   temp12 <-  temp_data$Temp_max #12
   
@@ -600,7 +532,7 @@ for (i in dados$Microregiao %>% unique){
                      arglag=list(fun="poly",degree=4))#1
     ## original gam / dlnm model
     mod <- gam(Casos~cb+ns(tempo,22*8)+Dia,family=nb,data=temp_data)#1
-
+    
     
     ## Prediction model with minimum risk temperature as reference
     P0 = round(quantile(temp,probs=0),1)
@@ -667,7 +599,6 @@ write.xlsx(table1, "table1.xlsx")
 write.xlsx(table2, "table2.xlsx")
 write.xlsx(table3, "table3.xlsx")
 write.xlsx(table4, "table4.xlsx")
-write.xlsx(table5, "table5.xlsx")
-write.xlsx(table6, "table6.xlsx")
+write.xlsx(table6, "table5.xlsx")
 write.xlsx(MMT_table, "MMT_table.xlsx")
 
