@@ -227,18 +227,20 @@ for (a in dados$Microregiao %>% unique){
   P97.5 = round(quantile(temp,probs=0.975),1)
   P99 = round(quantile(temp,probs=0.99),1)
   P100 = round(quantile(temp,probs=1),1)
+  ## Creating cross-basis objects for Temperature (lags up to 21 days)
+  cb <- crossbasis(temp, 
+                   lag=21, 
+                   argvar=list(fun="ns",df=5),
+                   arglag=list(fun="poly",degree=4))
+  ## Creating MMT object
+  MMT <- findmin(cb,mod,from=P1,to=P99)
+  ## Creating percentile object
   percentiles <- list(c(P0,P2.5),
                       c(P2.5,P10),
                       c(P10,MMT),
                       c(MMT,P90),
                       c(P90,P97.5),
                       c(P97.5,P100))
-  ## Creating cross-basis objects for Temperature (lags up to 14 days)
-  
-  cb <- crossbasis(temp, 
-                   lag=21, 
-                   argvar=list(fun="ns",df=5),
-                   arglag=list(fun="poly",degree=4))
   ## adjusting the GAM / DLMN model with negative binomial distribution
   
   mod <- gam(Casos~cb+
@@ -246,14 +248,6 @@ for (a in dados$Microregiao %>% unique){
                Dia,
              family= nb,
              data= temp_data)
-  
-  ## ESTIMATING THE MINIMUM RISK TEMPERATURE
-  # Ref: Tobías et al., 2017.
-  
-  MMT <- findmin(cb,
-                 mod,
-                 from= P1,
-                 to= P99)
   
   for (b in 1:6){
     print(b)
@@ -285,7 +279,7 @@ for (a in dados$Microregiao %>% unique){
     
     CI.1 <- round(quantile(sim_r,c(2.5,97.5)/100)*100,2) %>% 
       as_tibble()
-    CI.2 <- round(quantile(sim_n,c(2.5,97.5)/100)*100,2) %>% 
+    CI.2 <- round(quantile(sim_n,c(2.5,97.5)/100),2) %>% 
       as_tibble()
     
     
