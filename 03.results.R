@@ -8,7 +8,7 @@ library(stats)
 library(dlnm)
 source("00.attrdl.R")
 options(scipen=999)
-
+set.seed(1000)
 
 # Generating tables, models and sensitivity analysis in loop --------------
 
@@ -228,10 +228,17 @@ for (a in dados$Microregiao %>% unique){
   P99 = round(quantile(temp,probs=0.99),1)
   P100 = round(quantile(temp,probs=1),1)
   ## Creating cross-basis objects for Temperature (lags up to 21 days)
-  cb <- crossbasis(temp, 
-                   lag=21, 
+  cb <- crossbasis(temp, lag=21, 
                    argvar=list(fun="ns",df=5),
                    arglag=list(fun="poly",degree=4))
+  ## adjusting the GAM / DLMN model with negative binomial distribution
+  
+  mod <- gam(Casos~cb+
+               ns(tempo,22*8)+
+               Dia,
+             family= nb,
+             data= temp_data)
+  
   ## Creating MMT object
   MMT <- findmin(cb,mod,from=P1,to=P99)
   ## Creating percentile object
@@ -241,14 +248,6 @@ for (a in dados$Microregiao %>% unique){
                       c(MMT,P90),
                       c(P90,P97.5),
                       c(P97.5,P100))
-  ## adjusting the GAM / DLMN model with negative binomial distribution
-  
-  mod <- gam(Casos~cb+
-               ns(tempo,22*8)+
-               Dia,
-             family= nb,
-             data= temp_data)
-  
   for (b in 1:6){
     print(b)
     c = conditions[[b]]
@@ -260,7 +259,7 @@ for (a in dados$Microregiao %>% unique){
                        type="af",
                        cen=MMT,
                        range=c(d),
-                       dir="forw")*100,2) %>% as_tibble()
+                       dir="forw")*100,1) %>% as_tibble()
     # Attributed Number
     AN <- round(attrdl(temp,cb,
                        temp_data$Casos,
@@ -268,7 +267,7 @@ for (a in dados$Microregiao %>% unique){
                        type="an",
                        cen=MMT,
                        range=c(d),
-                       dir="forw"),2) %>% as_tibble()
+                       dir="forw"),1) %>% as_tibble()
     
     sim_r <- attrdl(temp,cb,temp_data$Casos,mod,type="af",
                     cen=MMT,range=c(d),sim=T,nsim=1000,dir="forw")
@@ -277,9 +276,9 @@ for (a in dados$Microregiao %>% unique){
                     cen=MMT,range=c(d),sim=T,nsim=1000,dir="forw")
     
     
-    CI.1 <- round(quantile(sim_r,c(2.5,97.5)/100)*100,2) %>% 
+    CI.1 <- round(quantile(sim_r,c(2.5,97.5)/100)*100,1) %>% 
       as_tibble()
-    CI.2 <- round(quantile(sim_n,c(2.5,97.5)/100),2) %>% 
+    CI.2 <- round(quantile(sim_n,c(2.5,97.5)/100),1) %>% 
       as_tibble()
     
     
@@ -295,7 +294,8 @@ for (a in dados$Microregiao %>% unique){
     big_table4.2 <- bind_rows(big_table4.2,
                               lil_tible4.2)
     
-  }}
+  }
+}
 
 big_table4.1 <- big_table4.1 %>% 
   pivot_wider(names_from = "variables", values_from = "value") %>% 
